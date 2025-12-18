@@ -1,101 +1,64 @@
 # Instagram Profile Info API
 
-Fast API to fetch Instagram profile information with proxy rotation support.
+Fast Instagram Profile Info API with Proxy Rotation support.
 
-## 🚀 Deploy to Vercel
+## API Endpoints
 
-1. **Install Vercel CLI** (if not installed):
-   ```bash
-   npm i -g vercel
-   ```
+- `GET /api/user?username=<username>` - Get Instagram profile info
+- `GET /api/` - API documentation
 
-2. **Deploy**:
-   ```bash
-   vercel --prod
-   ```
-
-3. **Use the API**:
-   ```
-   GET https://your-app.vercel.app/api/user?username=zuck
-   ```
-
-## 📡 API Endpoints
-
-### Get Profile Info
-```
-GET /api/user?username=<username>
-```
-
-**Example Request:**
-```bash
-curl "https://your-app.vercel.app/api/user?username=zuck"
-```
-
-**Example Response:**
-```json
-{
-  "success": true,
-  "data": {
-    "name": "Mark Zuckerberg",
-    "username": "zuck",
-    "user_id": "314216",
-    "bio": "I build stuff",
-    "verified": true,
-    "private": false,
-    "posts": 420,
-    "followers": 16541851,
-    "following": 623,
-    "business": false,
-    "category": null,
-    "external_url": null,
-    "profile_pic_url": "https://..."
-  },
-  "responseTime": "234ms",
-  "credits": {
-    "author": "@pluggerpy",
-    "poweredBy": "@vexelsocials"
-  }
-}
-```
-
-## ⚡ Features
-
-- 🔄 **Proxy Rotation** - 100 residential proxies for avoiding rate limits
-- 🚀 **Fast Response** - Typically < 500ms
-- 🌐 **CORS Enabled** - Use from any frontend
-- 📱 **Full Profile Data** - Name, bio, followers, posts, verified status, etc.
-
-## 🔧 Local Development
+## Example
 
 ```bash
-npm install
-npm run dev
+curl https://your-site.netlify.app/api/user?username=zuck
 ```
 
-Then visit: `http://localhost:3000/api/user?username=zuck`
+## Deployment
 
-## 📁 Project Structure
+### Netlify (Current Setup)
 
+1. Push your code to a Git repository (GitHub, GitLab, etc.)
+2. Connect your repository to Netlify
+3. Netlify will auto-detect the configuration from `netlify.toml`
+4. Deploy!
+
+Or use Netlify CLI:
+
+```bash
+# Install Netlify CLI
+npm install -g netlify-cli
+
+# Login to Netlify
+netlify login
+
+# Deploy to production
+netlify deploy --prod
 ```
-├── api/
-│   ├── index.js      # Root endpoint (docs)
-│   └── user.js       # Main profile fetcher
-├── package.json
-├── vercel.json
-└── proxies.txt       # Proxy list (optional)
+
+### Vercel (Alternative)
+
+If you prefer Vercel instead:
+
+```bash
+npm run deploy
 ```
 
-## 🔐 Environment Variables (Optional)
+## Configuration Files
 
-You can set proxies via environment variable instead of hardcoding:
+- `netlify.toml` - Netlify configuration (redirects `/api/*` to serverless functions)
+- `netlify/functions/` - Netlify serverless functions
+- `api/` - Original Vercel-style API handlers (reused by Netlify wrappers)
 
-```
-PROXIES=user:pass:host:port
-user2:pass2:host2:port2
-...
-```
+## Features
+
+- ✅ Direct Instagram API requests
+- ✅ Fallback to HTML scraping
+- ✅ Automatic retry mechanism
+- ✅ CORS enabled
+- ✅ Fast response times
+- ✅ Serverless deployment ready
 
 ## Credits
 
-- Author: [@pluggerpy](https://t.me/pluggerpy)
-- Powered by: [@vexelsocials](https://t.me/vexelsocials)
+- Author: @pluggerpy
+- Powered by: @vexelsocials
