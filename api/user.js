@@ -162,6 +162,10 @@ async function scrapeFromHTML(username) {
 // Try API endpoint first
 async function fetchInstagram(username) {
 
+    // Add small random delay to appear more human-like
+    const randomDelay = 100 + Math.random() * 300; // 100-400ms
+    await new Promise(resolve => setTimeout(resolve, randomDelay));
+
     // Method 1: Try web_profile_info API
     try {
         const apiUrl = `https://www.instagram.com/api/v1/users/web_profile_info/?username=${encodeURIComponent(username)}`;
@@ -225,16 +229,31 @@ async function fetchInstagram(username) {
     return htmlResult;
 }
 
-// Retry with different attempts
-async function fetchWithRetry(username, maxRetries = 2) {
+// Utility: Sleep for random duration
+function sleep(ms) {
+    return new Promise(resolve => setTimeout(resolve, ms));
+}
+
+// Retry with different attempts and exponential backoff
+async function fetchWithRetry(username, maxRetries = 3) {
     const errors = [];
 
     for (let attempt = 0; attempt < maxRetries; attempt++) {
         try {
+            // Add delay before retry (not on first attempt)
+            if (attempt > 0) {
+                const baseDelay = 1000; // 1 second
+                const exponentialDelay = baseDelay * Math.pow(2, attempt - 1);
+                const jitter = Math.random() * 500; // Random 0-500ms
+                const totalDelay = exponentialDelay + jitter;
+
+                await sleep(totalDelay);
+            }
+
             const result = await fetchInstagram(username);
 
             if (result.found === false) {
-                return { success: false, code: result.code };
+                return { success: false, code: result.code, message: result.message };
             }
 
             if (result.found === true) {
@@ -246,15 +265,21 @@ async function fetchWithRetry(username, maxRetries = 2) {
                 };
             }
         } catch (err) {
-            errors.push({ attempt: attempt + 1, error: err.message });
-            // Continue to next attempt
+            const errorMsg = err.message;
+            errors.push({ attempt: attempt + 1, error: errorMsg });
+
+            // If rate limited, don't retry immediately
+            if (errorMsg === 'RATE_LIMITED' && attempt < maxRetries - 1) {
+                await sleep(2000 + Math.random() * 1000); // Wait 2-3 seconds
+            }
         }
     }
 
     return {
         success: false,
         code: 'FETCH_FAILED',
-        errors: errors.slice(0, 2) // Return first 2 errors for debugging
+        message: 'Unable to fetch account information. Please try again later.',
+        errors: errors.slice(0, 3) // Return all errors for debugging
     };
 }
 
