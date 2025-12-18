@@ -1,16 +1,23 @@
 {
   "name": "ig-info-api",
-  "version": "1.0.0",
-  "description": "Fast Instagram Profile Info API with Proxy Rotation",
+  "version": "2.0.0",
+  "description": "Fast Instagram Profile Info API with Multi-Platform Support",
   "main": "api/index.js",
   "scripts": {
     "dev": "vercel dev",
-    "deploy": "vercel --prod"
+    "deploy": "vercel --prod",
+    "workers:dev": "wrangler dev",
+    "workers:deploy": "wrangler deploy",
+    "netlify:dev": "netlify dev",
+    "netlify:deploy": "netlify deploy --prod"
   },
   "dependencies": {
     "https-proxy-agent": "^7.0.2",
     "node-fetch": "^2.7.0",
     "socks-proxy-agent": "^8.0.5"
+  },
+  "devDependencies": {
+    "wrangler": "^3.0.0"
   },
   "engines": {
     "node": ">=18"
