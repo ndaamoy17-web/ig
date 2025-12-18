@@ -61,7 +61,11 @@ async function scrapeFromHTML(username) {
     });
 
     if (response.status === 404) {
-        return { found: false, code: 'USER_NOT_FOUND' };
+        return { found: false, code: 'USER_NOT_FOUND', message: 'This account does not exist' };
+    }
+
+    if (response.status === 429) {
+        throw new Error('RATE_LIMITED');
     }
 
     if (response.status !== 200) {
@@ -69,6 +73,44 @@ async function scrapeFromHTML(username) {
     }
 
     const html = await response.text();
+
+    // Check for banned/suspended account patterns
+    if (html.includes('Sorry, this page isn\'t available') ||
+        html.includes('The link you followed may be broken') ||
+        html.includes('Page Not Found')) {
+        return {
+            found: false,
+            code: 'ACCOUNT_NOT_AVAILABLE',
+            message: 'This account is not available. It may have been banned, deleted, or suspended.'
+        };
+    }
+
+    // Check for deactivated account
+    if (html.includes('User not found') || html.includes('accountNotFound')) {
+        return {
+            found: false,
+            code: 'ACCOUNT_DEACTIVATED',
+            message: 'This account has been deactivated or deleted by the user.'
+        };
+    }
+
+    // Check for restricted/banned account
+    if (html.includes('suspended') || html.includes('violated') || html.includes('community guidelines')) {
+        return {
+            found: false,
+            code: 'ACCOUNT_SUSPENDED',
+            message: 'This account has been suspended for violating Instagram\'s community guidelines.'
+        };
+    }
+
+    // Check for temporarily unavailable
+    if (html.includes('temporarily unavailable') || html.includes('try again later')) {
+        return {
+            found: false,
+            code: 'TEMPORARILY_UNAVAILABLE',
+            message: 'This account is temporarily unavailable. Please try again later.'
+        };
+    }
 
     // Extract JSON data from HTML
     const scriptMatch = html.match(/<script type="application\/ld\+json">({[^<]+})<\/script>/);
@@ -145,7 +187,11 @@ async function fetchInstagram(username) {
         });
 
         if (response.status === 404) {
-            return { found: false, code: 'USER_NOT_FOUND' };
+            return { found: false, code: 'USER_NOT_FOUND', message: 'This account does not exist' };
+        }
+
+        if (response.status === 429) {
+            throw new Error('RATE_LIMITED');
         }
 
         if (response.status === 200) {
@@ -154,6 +200,17 @@ async function fetchInstagram(username) {
 
             if (user) {
                 return { found: true, data: formatUserData(user), method: 'API' };
+            }
+
+            // Check if API returned an error message
+            if (data?.message) {
+                const message = data.message.toLowerCase();
+                if (message.includes('user not found') || message.includes('doesn\'t exist')) {
+                    return { found: false, code: 'USER_NOT_FOUND', message: 'This account does not exist' };
+                }
+                if (message.includes('suspended') || message.includes('banned')) {
+                    return { found: false, code: 'ACCOUNT_SUSPENDED', message: 'This account has been suspended' };
+                }
             }
         }
     } catch (apiError) {
@@ -224,7 +281,7 @@ module.exports = async (req, res) => {
     username = username.trim().toLowerCase().replace(/^@/, '');
 
     if (!username || !/^[a-z0-9._]{1,30}$/.test(username)) {
-        return res.status(400).json({ success: false, error: 'Invalid username' });
+        return res.status(400).json({ success: false, error: 'Invalid username format' });
     }
 
     const startTime = Date.now();
@@ -244,26 +301,81 @@ module.exports = async (req, res) => {
             });
         }
 
+        // Handle specific error codes
         if (result.code === 'USER_NOT_FOUND') {
             return res.status(404).json({
                 success: false,
                 error: 'User not found',
+                message: 'This Instagram account does not exist',
                 code: 'USER_NOT_FOUND',
             });
         }
 
+        if (result.code === 'ACCOUNT_SUSPENDED') {
+            return res.status(403).json({
+                success: false,
+                error: 'Account suspended',
+                message: 'This account has been suspended for violating Instagram\'s community guidelines',
+                code: 'ACCOUNT_SUSPENDED',
+            });
+        }
+
+        if (result.code === 'ACCOUNT_NOT_AVAILABLE') {
+            return res.status(410).json({
+                success: false,
+                error: 'Account not available',
+                message: 'This account is not available. It may have been banned, deleted, or suspended',
+                code: 'ACCOUNT_NOT_AVAILABLE',
+            });
+        }
+
+        if (result.code === 'ACCOUNT_DEACTIVATED') {
+            return res.status(410).json({
+                success: false,
+                error: 'Account deactivated',
+                message: 'This account has been deactivated or deleted by the user',
+                code: 'ACCOUNT_DEACTIVATED',
+            });
+        }
+
+        if (result.code === 'TEMPORARILY_UNAVAILABLE') {
+            return res.status(503).json({
+                success: false,
+                error: 'Temporarily unavailable',
+                message: 'This account is temporarily unavailable. Please try again later',
+                code: 'TEMPORARILY_UNAVAILABLE',
+            });
+        }
+
+        // Generic service unavailable
         return res.status(503).json({
             success: false,
             error: 'Service unavailable',
-            code: result.code,
+            message: 'Unable to fetch account information at this time',
+            code: result.code || 'FETCH_FAILED',
             debug: result.errors,
         });
 
     } catch (error) {
+        const responseTime = Date.now() - startTime;
+
+        // Handle rate limiting
+        if (error.message === 'RATE_LIMITED') {
+            return res.status(429).json({
+                success: false,
+                error: 'Rate limited',
+                message: 'Too many requests. Please try again later',
+                code: 'RATE_LIMITED',
+                responseTime: `${responseTime}ms`,
+            });
+        }
+
         return res.status(500).json({
             success: false,
             error: 'Internal error',
-            message: error.message,
+            message: error.message || 'An unexpected error occurred',
+            code: 'INTERNAL_ERROR',
+            responseTime: `${responseTime}ms`,
         });
     }
 };

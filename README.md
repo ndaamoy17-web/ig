@@ -13,6 +13,30 @@ Fast Instagram Profile Info API with Proxy Rotation support.
 curl https://your-site.netlify.app/api/user?username=zuck
 ```
 
+## Error Handling
+
+The API provides detailed error messages for various account states:
+
+- ✅ **User Not Found** (404) - Account doesn't exist
+- ✅ **Account Suspended** (403) - Suspended for community guideline violations
+- ✅ **Account Not Available** (410) - Banned, deleted, or suspended
+- ✅ **Account Deactivated** (410) - Deactivated by the user
+- ✅ **Temporarily Unavailable** (503) - Try again later
+- ✅ **Rate Limited** (429) - Too many requests
+
+For complete error documentation, see [ERROR_CODES.md](./ERROR_CODES.md)
+
+### Example Error Response
+
+```json
+{
+  "success": false,
+  "error": "Account suspended",
+  "message": "This account has been suspended for violating Instagram's community guidelines",
+  "code": "ACCOUNT_SUSPENDED"
+}
+```
+
 ## Deployment
 
 ### Netlify (Current Setup)
