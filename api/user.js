@@ -60,19 +60,21 @@ async function scrapeFromHTML(username) {
         timeout: 2500,
     });
 
-    if (response.status === 404) {
-        return { found: false, code: 'USER_NOT_FOUND', message: 'This account does not exist' };
-    }
-
-    if (response.status === 429) {
-        throw new Error('RATE_LIMITED');
-    }
-
-    if (response.status !== 200) {
+    // Try to get HTML content FIRST (regardless of status code)
+    // This allows us to detect banned/suspended accounts even when rate limited
+    let html = '';
+    try {
+        html = await response.text();
+    } catch (e) {
+        // If we can't get HTML, fall back to status code only
+        if (response.status === 404) {
+            return { found: false, code: 'USER_NOT_FOUND', message: 'This account does not exist' };
+        }
+        if (response.status === 429) {
+            throw new Error('RATE_LIMITED');
+        }
         throw new Error(`HTTP_${response.status}`);
     }
-
-    const html = await response.text();
 
     // Check for banned/suspended account patterns
     if (html.includes('Sorry, this page isn\'t available') ||
@@ -110,6 +112,19 @@ async function scrapeFromHTML(username) {
             code: 'TEMPORARILY_UNAVAILABLE',
             message: 'This account is temporarily unavailable. Please try again later.'
         };
+    }
+
+    // NOW check status codes AFTER HTML pattern checking
+    if (response.status === 404) {
+        return { found: false, code: 'USER_NOT_FOUND', message: 'This account does not exist' };
+    }
+
+    if (response.status === 429) {
+        throw new Error('RATE_LIMITED');
+    }
+
+    if (response.status !== 200) {
+        throw new Error(`HTTP_${response.status}`);
     }
 
     // Extract JSON data from HTML
